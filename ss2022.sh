@@ -19,7 +19,7 @@ PLAIN="\033[0m"
 # 自动安装快捷指令 (双保险修复版)
 # ==========================================
 if [[ "$0" == *"/dev/fd/"* ]] || [[ "$0" == *"bash"* ]] || [ ! -s "/usr/local/bin/ss2022" ]; then
-    curl -Ls "https://raw.githubusercontent.com/licong87/ss2022/main/ss2022.sh" -o /usr/local/bin/ss2022
+    curl -Ls "https://raw.githubusercontent.com/licong87/SS2022/main/ss2022.sh" -o /usr/local/bin/ss2022
     chmod +x /usr/local/bin/ss2022
 elif [ "$SCRIPT_PATH" != "/usr/local/bin/ss2022" ]; then
     cp -f "$SCRIPT_PATH" /usr/local/bin/ss2022
@@ -132,6 +132,31 @@ EOF
     sleep 2
 }
 
+uninstall_core() {
+    clear
+    echo "=================================================="
+    echo -e "              ${RED}卸载核心及清理脚本${PLAIN}"
+    echo "=================================================="
+    read -p "确定要彻底卸载并清除所有配置和流量数据吗？(y/n): " UNINSTALL_CONFIRM
+    if [[ "${UNINSTALL_CONFIRM}" == "y" || "${UNINSTALL_CONFIRM}" == "Y" ]]; then
+        echo -e "${GREEN}正在卸载 Xray 核心...${PLAIN}"
+        bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh) remove
+        
+        echo -e "${GREEN}正在清理定时任务...${PLAIN}"
+        crontab -l 2>/dev/null | grep -v "ss2022 push" | grep -v "ss2022_reset" | crontab -
+        
+        echo -e "${GREEN}正在清理残留文件及配置...${PLAIN}"
+        rm -rf /usr/local/etc/xray
+        rm -f /usr/local/bin/ss2022
+        
+        echo -e "${GREEN}卸载彻底完成！江湖再见！${PLAIN}"
+        exit 0
+    else
+        echo -e "${GREEN}已取消卸载，返回主菜单。${PLAIN}"
+        sleep 2
+    fi
+}
+
 add_node() {
     install_deps
     clear
@@ -235,7 +260,6 @@ setup_tg() {
     echo "=================================================="
     read -p "Bot Token (直接回车返回主菜单, 输入 0 关闭推送): " NEW_TOKEN
     
-    # 纯回车返回主菜单
     [ -z "$NEW_TOKEN" ] && return
     
     if [ "$NEW_TOKEN" == "0" ]; then
@@ -283,7 +307,6 @@ setup_reset() {
     echo "--------------------------------------------------"
     read -p "请输入重置日期 1-28 (直接回车返回主菜单, 输入 0 关闭重置): " RESET_DAY
     
-    # 纯回车返回主菜单
     [ -z "$RESET_DAY" ] && return
     
     crontab -l 2>/dev/null | grep -v "ss2022_reset" | crontab -
@@ -310,7 +333,7 @@ while true; do
     echo -e "=================================================="
     echo -e " 1. 安装 核心服务"
     echo -e " 2. 更新 核心服务"
-    echo -e " 3. 卸载 核心服务"
+    echo -e " 3. 卸载 核心及配置"
     echo -e "--------------------------------------------------"
     echo -e " 4. 启动 核心服务"
     echo -e " 5. 停止 核心服务"
@@ -333,7 +356,7 @@ while true; do
     case $OPTION in
         1) install_core ;;
         2) bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh) install ;;
-        3) bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh) remove ;;
+        3) uninstall_core ;;
         4) systemctl start xray ;;
         5) systemctl stop xray ;;
         6) systemctl restart xray ;;
