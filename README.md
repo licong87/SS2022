@@ -23,7 +23,7 @@ ss2022多端口管理及流量监控通知
 
 ```bash
 bash <(curl -Ls https://raw.githubusercontent.com/licong87/ss2022/main/ss2022.sh)
-
+```
 ---
 
 
