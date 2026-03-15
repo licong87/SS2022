@@ -16,9 +16,14 @@ YELLOW="\033[33m"
 PLAIN="\033[0m"
 
 # ==========================================
-# 自动安装快捷指令 (仅支持 ss2022)
+# 自动安装快捷指令 (双保险修复版)
 # ==========================================
-if [ "$SCRIPT_PATH" != "/usr/local/bin/ss2022" ]; then
+# 如果是通过 curl 内存流运行，或者快捷命令不存在/为空，强制从 GitHub 拉取
+if [[ "$0" == *"/dev/fd/"* ]] || [[ "$0" == *"bash"* ]] || [ ! -s "/usr/local/bin/ss2022" ]; then
+    curl -Ls "https://raw.githubusercontent.com/licong87/ss2022/main/ss2022.sh" -o /usr/local/bin/ss2022
+    chmod +x /usr/local/bin/ss2022
+# 如果是本地真实文件运行，则复制自身
+elif [ "$SCRIPT_PATH" != "/usr/local/bin/ss2022" ]; then
     cp -f "$SCRIPT_PATH" /usr/local/bin/ss2022
     chmod +x /usr/local/bin/ss2022
 fi
@@ -63,7 +68,7 @@ get_total_traffic() {
 }
 
 # ==========================================
-# 后台定时推送模块 (新增 push_test 测试回显)
+# 后台定时推送模块
 # ==========================================
 if [ "$1" == "push" ] || [ "$1" == "push_test" ]; then
     if [ -f "$TG_CONF" ]; then
