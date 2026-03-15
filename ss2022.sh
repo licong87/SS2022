@@ -18,11 +18,9 @@ PLAIN="\033[0m"
 # ==========================================
 # 自动安装快捷指令 (双保险修复版)
 # ==========================================
-# 如果是通过 curl 内存流运行，或者快捷命令不存在/为空，强制从 GitHub 拉取
 if [[ "$0" == *"/dev/fd/"* ]] || [[ "$0" == *"bash"* ]] || [ ! -s "/usr/local/bin/ss2022" ]; then
     curl -Ls "https://raw.githubusercontent.com/licong87/ss2022/main/ss2022.sh" -o /usr/local/bin/ss2022
     chmod +x /usr/local/bin/ss2022
-# 如果是本地真实文件运行，则复制自身
 elif [ "$SCRIPT_PATH" != "/usr/local/bin/ss2022" ]; then
     cp -f "$SCRIPT_PATH" /usr/local/bin/ss2022
     chmod +x /usr/local/bin/ss2022
@@ -91,11 +89,9 @@ if [ "$1" == "push" ] || [ "$1" == "push_test" ]; then
         MESSAGE+="=========================%0A⏰ 播报时间: $(date +"%Y-%m-%d %H:%M:%S")"
         
         if [ "$1" == "push_test" ]; then
-            # 测试模式：直接打印结果，不隐藏报错
             curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d chat_id="${TG_CHAT_ID}" -d text="${MESSAGE}" -d parse_mode="HTML"
             echo ""
         else
-            # 定时模式：后台默默发送
             curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d chat_id="${TG_CHAT_ID}" -d text="${MESSAGE}" -d parse_mode="HTML" > /dev/null
         fi
     fi
@@ -146,12 +142,12 @@ add_node() {
         PORTS=$(jq -r '.inbounds[] | select(.tag != "api" and .tag != null) | .port' $CONFIG_FILE 2>/dev/null)
         [ -n "$PORTS" ] && echo -e "【提示】已占用端口: ${RED}$PORTS${PLAIN}"
     fi
-    echo -e "输入 ${YELLOW}0${PLAIN} 可回退到主菜单"
     echo "--------------------------------------------------"
-    read -p "请输入新端口: " NEW_PORT
-    [ "$NEW_PORT" == "0" ] && return
-    read -p "请输入备注: " REMARK
-    [ "$REMARK" == "0" ] && return
+    read -p "请输入新端口 (直接回车返回主菜单): " NEW_PORT
+    [ -z "$NEW_PORT" ] && return
+    
+    read -p "请输入备注 (直接回车返回主菜单): " REMARK
+    [ -z "$REMARK" ] && return
     
     jq -e ".inbounds[] | select(.port == $NEW_PORT)" $CONFIG_FILE > /dev/null 2>&1 && echo -e "${RED}端口已存在${PLAIN}" && sleep 2 && return
     
@@ -224,8 +220,8 @@ delete_node() {
         echo -e "  - 端口: ${GREEN}$p${PLAIN} | 备注: $REMARK"
     done
     echo "--------------------------------------------------"
-    read -p "请输入要删除的端口号 (输入0取消): " DEL_PORT
-    [ "$DEL_PORT" == "0" ] && return
+    read -p "请输入要删除的端口号 (直接回车返回主菜单): " DEL_PORT
+    [ -z "$DEL_PORT" ] && return
     
     jq --arg port "$DEL_PORT" 'del(.inbounds[] | select(.port == ($port|tonumber)))' $CONFIG_FILE > /tmp/xray.json && mv /tmp/xray.json $CONFIG_FILE
     systemctl restart xray
@@ -237,14 +233,19 @@ setup_tg() {
     echo "=================================================="
     echo -e "              ${GREEN}设置 TG 定时通知推送${PLAIN}"
     echo "=================================================="
-    read -p "Bot Token (输入0或留空关闭推送): " NEW_TOKEN
-    if [ "$NEW_TOKEN" == "0" ] || [ -z "$NEW_TOKEN" ]; then
+    read -p "Bot Token (直接回车返回主菜单, 输入 0 关闭推送): " NEW_TOKEN
+    
+    # 纯回车返回主菜单
+    [ -z "$NEW_TOKEN" ] && return
+    
+    if [ "$NEW_TOKEN" == "0" ]; then
         rm -f "$TG_CONF"
         crontab -l 2>/dev/null | grep -v "ss2022 push" | crontab -
         echo -e "${GREEN}已关闭推送并清理了后台任务！${PLAIN}"
         sleep 2
         return
     fi
+    
     read -p "Chat ID: " NEW_ID
     read -p "间隔(小时): " HOURS
     read -p "自定义推送标题 (直接回车默认): " CUSTOM_TITLE
@@ -280,13 +281,19 @@ setup_reset() {
         echo -e "当前状态：${RED}未设置定时重置${PLAIN}"
     fi
     echo "--------------------------------------------------"
-    read -p "请输入重置日期 (1-28, 0取消/关闭): " RESET_DAY
+    read -p "请输入重置日期 1-28 (直接回车返回主菜单, 输入 0 关闭重置): " RESET_DAY
+    
+    # 纯回车返回主菜单
+    [ -z "$RESET_DAY" ] && return
+    
     crontab -l 2>/dev/null | grep -v "ss2022_reset" | crontab -
-    if [[ "$RESET_DAY" != "0" && -n "$RESET_DAY" ]]; then
+    if [ "$RESET_DAY" == "0" ]; then
+        echo "已关闭重置任务"
+    elif [[ "$RESET_DAY" =~ ^[0-9]+$ ]] && [ "$RESET_DAY" -ge 1 ] && [ "$RESET_DAY" -le 28 ]; then
         (crontab -l 2>/dev/null; echo "0 0 $RESET_DAY * * systemctl restart xray && rm -f $TRAFFIC_DB # ss2022_reset") | crontab -
         echo -e "${GREEN}设置成功！每月 $RESET_DAY 号清零。${PLAIN}"
     else
-        echo "已关闭重置任务";
+        echo -e "${RED}输入错误，已取消操作。${PLAIN}"
     fi
     sleep 2
 }
